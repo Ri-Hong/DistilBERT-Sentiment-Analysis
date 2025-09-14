@@ -42,6 +42,76 @@ It combines popular open-source tools with cloud-native infrastructure to showca
    - Prefect or Argo retraining pipeline triggered by drift or schedule.  
    - Canary rollout for new models; auto-promotion after soak.
 
+---
+
+## Stages
+
+### Stage 1: Project Initialization
+- Create a GitHub repository and scaffold the folder structure (`app/`, `data/`, `infra/`, `flows/`, `monitoring/`).
+- Write down SLOs (latency, accuracy, availability, cost) in the README.
+- Set up basic GitHub Actions (lint/test placeholder).
+- Provision a GCP project, enable APIs (GKE, GCS, Artifact Registry).
+
+### Stage 2: Infrastructure Setup
+- Use Terraform to create:
+  - GKE cluster (Autopilot or Standard + GPU node pool).
+  - GCS bucket for datasets & artifacts.
+  - Artifact Registry for container images.
+- Configure Workload Identity for service-to-service auth.
+- Install cluster add-ons:
+  - Ingress-NGINX and cert-manager.
+  - kube-prometheus-stack (Prometheus + Grafana).
+  - NVIDIA device plugin (if using Standard GKE GPUs).
+
+### Stage 3: Data Management
+- Fetch a sample of the IMDB dataset from Hugging Face.
+- Version data with **DVC**, store large files in GCS.
+- Implement validation rules with **Great Expectations** (schema, missing values, label balance).
+
+### Stage 4: Model Development & Training
+- Write the training script for DistilBERT (PyTorch + Transformers).
+- Integrate MLflow for experiment logging (metrics, hyperparameters, artifacts).
+- Run training locally or in a GPU-enabled K8s Job.
+- Define a baseline accuracy/F1.
+
+### Stage 5: Model Evaluation & Registration
+- Evaluate the trained model against the baseline.
+- Register models in MLflow Model Registry.
+- Define promotion policies (Staging → Production).
+
+### Stage 6: Packaging & Serving
+- Create a BentoML service wrapping the model with `/predict`, `/health`, `/metrics`.
+- Build and push the Bento image to Artifact Registry.
+- Deploy to GKE:
+  - Deployment + Service + HPA.
+  - Ingress with TLS.
+  - Secure access via Workload Identity and RBAC.
+
+### Stage 7: Monitoring & Drift Detection
+- Expose application metrics (latency, errors, version) for Prometheus.
+- Build Grafana dashboards.
+- Schedule an Evidently CronJob to compute drift metrics (PSI, KS).
+- Configure Alertmanager → Slack for SLO violations or drift.
+
+### Stage 8: CI/CD & Automation
+- Expand GitHub Actions:
+  - Run unit tests, style checks, and smoke inference.
+  - Build/push container on merge to `main`.
+  - Deploy canary to GKE; promote after soak if metrics stable.
+- Add a Prefect (or Argo) pipeline:
+  - Ingest new data → validate → retrain on GPU → evaluate → register → deploy.
+
+### Stage 9: Documentation & Runbook
+- Write a runbook:
+  - How to retrain and deploy.
+  - How to read dashboards and handle alerts.
+  - Rollback procedures for bad canaries.
+- Add diagrams:
+  - High-level architecture.
+  - Data flow and retraining pipeline.
+
+---
+
 ## Deliverables
 - A GitHub repository with:
   - Training, inference, and pipeline code.

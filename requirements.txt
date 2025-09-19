@@ -1,0 +1,16 @@
+# Data management and versioning
+dvc==3.47.0
+dvc[gs]  # For Google Cloud Storage support
+datasets==2.18.0  # Hugging Face datasets
+great-expectations==0.18.9
+
+# ML dependencies (will need these later)
+torch==2.2.1
+transformers==4.38.2
+scikit-learn==1.4.1.post1
+
+# Development dependencies
+pytest==8.0.2
+black==24.2.0
+isort==5.13.2
+flake8==7.0.0

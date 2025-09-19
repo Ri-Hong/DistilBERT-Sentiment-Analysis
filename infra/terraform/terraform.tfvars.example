@@ -1,0 +1,11 @@
+# Replace with your GCP project ID
+project_id = "your-project-id"
+region     = "us-central1"
+zone       = "us-central1-a"
+
+environment = "dev"
+
+# Resource naming - adjust as needed
+cluster_name          = "distilbert-sentiment"
+gcs_bucket_name       = "your-unique-bucket-name"
+artifact_registry_name = "distilbert-sentiment"

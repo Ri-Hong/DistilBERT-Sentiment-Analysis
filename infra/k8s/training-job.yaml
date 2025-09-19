@@ -1,0 +1,86 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: distilbert-training
+spec:
+  backoffLimit: 2  # Allow 2 retries
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: training
+        image: gcr.io/sentimentops-123/sentiment-training:latest
+        resources:
+          limits:
+            nvidia.com/gpu: 1  # Request 1 GPU
+            memory: "16Gi"
+            cpu: "4"
+          requests:
+            memory: "8Gi"
+            cpu: "2"
+        env:
+        - name: BATCH_SIZE
+          value: "32"  # Larger batch size for GPU
+        - name: NUM_EPOCHS
+          value: "3"
+        - name: LEARNING_RATE
+          value: "2e-5"
+        - name: MLFLOW_TRACKING_URI
+          value: "/app/mlruns"
+        volumeMounts:
+        - name: data-volume
+          mountPath: /app/data
+        - name: model-volume
+          mountPath: /app/model
+        - name: mlflow-volume
+          mountPath: /app/mlruns
+        command:
+        - "python"
+        - "-m"
+        - "app.training.train"
+      volumes:
+      - name: data-volume
+        persistentVolumeClaim:
+          claimName: training-data-pvc
+      - name: model-volume
+        persistentVolumeClaim:
+          claimName: model-artifacts-pvc
+      - name: mlflow-volume
+        persistentVolumeClaim:
+          claimName: mlflow-tracking-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: training-data-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: standard
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: model-artifacts-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: standard
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mlflow-tracking-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: standard

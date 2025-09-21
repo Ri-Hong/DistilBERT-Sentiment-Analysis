@@ -42,30 +42,6 @@ def load_data(data_dir: str) -> Tuple[DataLoader, DataLoader]:
     """
     Load and prepare IMDB dataset for training.
     """
-    # Load tokenized datasets
-    train_dataset = load_from_disk(str(Path(data_dir) / "train"))
-    test_dataset = load_from_disk(str(Path(data_dir) / "test"))
-
-    # Create dataloaders
-    train_dataloader = DataLoader(
-        train_dataset,
-        shuffle=True,
-        batch_size=BATCH_SIZE,
-        collate_fn=default_data_collator,
-    )
-    eval_dataloader = DataLoader(
-        test_dataset,
-        batch_size=BATCH_SIZE,
-        collate_fn=default_data_collator,
-    )
-
-    return train_dataloader, eval_dataloader
-
-
-def load_data(data_dir: str) -> Tuple[DataLoader, DataLoader]:
-    """
-    Load and prepare IMDB dataset for training.
-    """
     # Load tokenizer for data collation
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
@@ -201,8 +177,10 @@ def main():
     )
 
     # Start MLflow run
+    logger.info("Starting MLflow run...")
     with mlflow.start_run():
         # Log parameters
+        logger.info("Logging parameters to MLflow...")
         mlflow.log_params({
             "model_name": MODEL_NAME,
             "batch_size": BATCH_SIZE,
@@ -211,6 +189,7 @@ def main():
             "max_length": MAX_LENGTH,
             "weight_decay": WEIGHT_DECAY,
         })
+        logger.info("Parameters logged successfully")
 
         # Training loop
         best_f1 = 0.0

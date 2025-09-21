@@ -6,15 +6,15 @@ import os
 from pathlib import Path
 
 # MLflow tracking configuration
-MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "mlruns")
+MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "/app/mlruns/tracking")
 EXPERIMENT_NAME = "sentiment-analysis-training"
 
 # Ensure MLflow directories exist
-Path("mlruns").mkdir(exist_ok=True)
-Path("model/artifacts").mkdir(parents=True, exist_ok=True)
+Path("/app/mlruns/tracking").mkdir(parents=True, exist_ok=True)
+Path("/app/model/artifacts").mkdir(parents=True, exist_ok=True)
 
 # Model artifacts configuration
-ARTIFACTS_DIR = Path("model/artifacts")
+ARTIFACTS_DIR = Path("/app/model/artifacts")
 ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
 
 # Import metrics configuration

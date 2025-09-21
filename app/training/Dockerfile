@@ -1,39 +1,41 @@
-# Use NVIDIA CUDA base image with Python
-FROM nvidia/cuda:12.1.0-runtime-ubuntu22.04
+# Stage 1: Build dependencies
+FROM --platform=linux/amd64 python:3.11-slim AS builder
 
-# Set working directory
+WORKDIR /app
+COPY requirements.txt .
+
+RUN apt-get update && apt-get install -y \
+    git \
+    && rm -rf /var/lib/apt/lists/* \
+    && python -m venv /app/venv \
+    && . /app/venv/bin/activate \
+    && pip install --no-cache-dir -r requirements.txt
+
+# Stage 2: Runtime
+FROM --platform=linux/amd64 python:3.11-slim
+
 WORKDIR /app
 
-# Install Python and pip
+# Install git for MLflow versioning
 RUN apt-get update && apt-get install -y \
-    python3.11 \
-    python3-pip \
-    python3.11-venv \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# Create and activate virtual environment
-RUN python3.11 -m venv /app/venv
+# Copy virtual environment from builder
+COPY --from=builder /app/venv /app/venv
 ENV PATH="/app/venv/bin:$PATH"
 
-# Copy requirements file
-COPY requirements.txt .
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app
+ENV MLFLOW_TRACKING_URI=/app/mlruns/tracking
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy application code
+# Copy application code and data
 COPY app app/
 COPY data data/
 
 # Create necessary directories
 RUN mkdir -p /app/model/artifacts /app/mlruns
-
-# Set environment variables
-ENV PYTHONPATH=/app
-ENV NVIDIA_VISIBLE_DEVICES=all
-ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility
-ENV MLFLOW_TRACKING_URI=/app/mlruns
 
 # Set default command
 CMD ["python", "-m", "app.training.train"]

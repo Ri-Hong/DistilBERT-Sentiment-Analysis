@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: distilbert-training
+  name: distilbert-r
 spec:
   backoffLimit: 2  # Allow 2 retries
   template:
@@ -12,32 +12,31 @@ spec:
         image: gcr.io/sentimentops-123/sentiment-training:latest
         resources:
           limits:
-            nvidia.com/gpu: 1  # Request 1 GPU
-            memory: "16Gi"
-            cpu: "4"
+            memory: "48Gi"  # More memory for CPU training
+            cpu: "7"  # Almost all CPU cores
           requests:
-            memory: "8Gi"
-            cpu: "2"
+            memory: "32Gi"
+            cpu: "6"
         env:
         - name: BATCH_SIZE
-          value: "32"  # Larger batch size for GPU
+          value: "24"  # Balanced batch size for CPU
         - name: NUM_EPOCHS
           value: "3"
         - name: LEARNING_RATE
           value: "2e-5"
         - name: MLFLOW_TRACKING_URI
-          value: "/app/mlruns"
+          value: "/app/mlruns/tracking"
         volumeMounts:
         - name: data-volume
-          mountPath: /app/data
+          mountPath: /app/data/processed
         - name: model-volume
           mountPath: /app/model
         - name: mlflow-volume
           mountPath: /app/mlruns
         command:
-        - "python"
-        - "-m"
-        - "app.training.train"
+        - "sh"
+        - "-c"
+        - "python -m app.training.preprocess && python -m app.training.train"
       volumes:
       - name: data-volume
         persistentVolumeClaim:

@@ -56,6 +56,8 @@ env/
 
 # ML specific
 models/
+model/
+*.safetensors
 mlruns/
 .dvc/
 *.dvc/

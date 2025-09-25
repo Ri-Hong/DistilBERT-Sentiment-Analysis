@@ -17,10 +17,10 @@ A production-ready sentiment analysis service built with DistilBERT and modern M
 ## 🌟 Key Features
 
 - **High-Performance Model**: Fine-tuned DistilBERT achieving 92%+ accuracy on IMDB reviews
-- **Scalable Architecture**: Kubernetes-based deployment with automatic scaling
-- **Production-Ready**: Comprehensive monitoring, alerting, and drift detection
-- **MLOps Best Practices**: Automated training, evaluation, and deployment pipelines
-- **Cost-Efficient**: GPU training, CPU inference, and resource auto-scaling
+- **Scalable Architecture**: Kubernetes-based deployment with GKE
+- **MLOps Best Practices**: Experiment tracking with MLflow, model versioning, and automated training pipeline
+- **Cost-Efficient**: GPU training with CPU inference optimization
+- **CI/CD Integration**: Automated builds and deployments with Cloud Build
 
 ## 🏗️ Architecture
 
@@ -43,14 +43,8 @@ graph TB
         K8S --> MLF
     end
 
-    subgraph "Monitoring"
-        PROM[Prometheus] --> K8S
-        GRAF[Grafana] --> PROM
-        ALERT[AlertManager] --> PROM
-    end
-
     subgraph "CI/CD"
-        GH[GitHub Actions] --> |Build| AR[Artifact Registry]
+        CB[Cloud Build] --> |Build| AR[Artifact Registry]
         AR --> K8S
     end
 ```
@@ -126,18 +120,17 @@ The service exposes a RESTful API for sentiment analysis:
 - **ML/DL**: PyTorch, Transformers, DistilBERT
 - **MLOps**: MLflow, DVC, BentoML
 - **Infrastructure**: GKE, Terraform, Docker
-- **Monitoring**: Prometheus, Grafana, Evidently
-- **CI/CD**: GitHub Actions, Cloud Build
+- **CI/CD**: Cloud Build
 - **Frontend**: Streamlit
 
-## 📈 Monitoring & Observability
+## 📈 Experiment Tracking
 
-Comprehensive monitoring setup with:
+Track model training and evaluation metrics with MLflow:
 
-- Real-time performance metrics
-- Data drift detection
-- Custom Grafana dashboards
-- Automated alerts
+- Training loss and accuracy
+- Model hyperparameters
+- Evaluation metrics on test set
+- Model artifacts and versions
 
 <p align="center">
   <img src="images/mlflow.png" alt="MLflow Dashboard" width="800"/>
@@ -147,37 +140,32 @@ Comprehensive monitoring setup with:
 
 ## 🔄 MLOps Pipeline
 
-Automated pipeline covering:
+Pipeline covering:
 
-1. Data versioning and validation
-2. Model training and evaluation
-3. Canary deployments
-4. Performance monitoring
-5. Automated retraining
+1. Data versioning and validation with DVC
+2. Model training and evaluation with MLflow
 
 ```mermaid
 sequenceDiagram
     participant Data as Data Pipeline
     participant Train as Training Job
     participant MLflow
-    participant Registry
+    participant Build as Cloud Build
     participant Deploy as Deployment
 
     Data->>Data: Fetch IMDB Data
-    Data->>Data: Validate Schema
     Data->>Data: Version with DVC
+    Data->>Data: Store in GCS
 
     Train->>Data: Load Latest Data
-    Train->>MLflow: Log Metrics
-    Train->>MLflow: Save Model
+    Train->>MLflow: Log Metrics & Model
+    Train->>MLflow: Save Artifacts
 
-    MLflow->>Registry: Register if Better
-    Registry->>Registry: Stage → Production
+    MLflow->>Build: Provide Model
+    Build->>Build: Build Container
+    Build->>Deploy: Push to Registry
 
-    Deploy->>Registry: Pull Latest Model
-    Deploy->>Deploy: Build Container
-    Deploy->>Deploy: Canary Deploy
-    Deploy->>Deploy: Monitor & Promote
+    Deploy->>Deploy: Deploy to GKE
 ```
 
 ## 🔐 Security
@@ -185,7 +173,6 @@ sequenceDiagram
 - Workload Identity for GCP service authentication
 - RBAC for Kubernetes resources
 - Secrets management via GCP Secret Manager
-- Network policies for service isolation
 
 ## 📚 Documentation
 

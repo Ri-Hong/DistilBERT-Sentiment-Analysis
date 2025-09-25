@@ -4,6 +4,7 @@
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.0-orange)
 ![Kubernetes](https://img.shields.io/badge/Kubernetes-1.27-326CE5)
 ![MLflow](https://img.shields.io/badge/MLflow-2.8-0194E2)
+![BentoML](https://img.shields.io/badge/BentoML-1.1-9cf)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
 A production-ready sentiment analysis service built with DistilBERT and modern MLOps practices. This project demonstrates end-to-end machine learning operations, from training to production deployment, incorporating industry best practices for scalability, monitoring, and continuous improvement.

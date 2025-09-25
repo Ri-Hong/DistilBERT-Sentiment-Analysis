@@ -4,7 +4,8 @@ resource "google_container_cluster" "primary" {
   project  = var.project_id
 
   # Enable Autopilot mode
-  enable_autopilot = true
+  enable_autopilot    = true
+  deletion_protection = false
 
   # Network configuration
   networking_mode = "VPC_NATIVE"
@@ -32,7 +33,7 @@ resource "google_project_iam_member" "gke_sa_roles" {
     "roles/storage.objectViewer",
     "roles/artifactregistry.reader"
   ])
-  
+
   project = var.project_id
   role    = each.key
   member  = "serviceAccount:${google_service_account.gke_sa.email}"

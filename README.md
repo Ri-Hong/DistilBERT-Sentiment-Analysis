@@ -9,9 +9,9 @@
 A production-ready sentiment analysis service built with DistilBERT and modern MLOps practices. This project demonstrates end-to-end machine learning operations, from training to production deployment, incorporating industry best practices for scalability, monitoring, and continuous improvement.
 
 <p align="center">
-  <img src="images/frontend.png" alt="Frontend Interface" width="800"/>
+  <img src="images/demo.gif" alt="Sentiment Analysis Demo" width="800"/>
   <br>
-  <em>Streamlit Frontend Interface for Sentiment Analysis</em>
+  <em>Live Demo of the Sentiment Analysis Service</em>
 </p>
 
 ## 🌟 Key Features
@@ -173,17 +173,6 @@ sequenceDiagram
 - Workload Identity for GCP service authentication
 - RBAC for Kubernetes resources
 - Secrets management via GCP Secret Manager
-
-## 📚 Documentation
-
-- [Project Overview](PROJECT.md)
-- [API Documentation](app/README.md)
-- [Infrastructure Setup](infra/README.md)
-- [Training Pipeline](app/training/README.md)
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 

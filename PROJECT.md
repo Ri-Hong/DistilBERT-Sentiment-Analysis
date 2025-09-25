@@ -1,5 +1,231 @@
 # SentimentOps: DistilBERT Sentiment Analysis with End-to-End MLOps
 
+## Runbook
+
+### Model Retraining and Deployment
+
+#### Prerequisites
+
+- Access to GCP project with required permissions
+- `gcloud` CLI configured with the project
+- `kubectl` configured to access the GKE cluster
+- Python environment with required dependencies (see `requirements.txt`)
+
+#### Retraining Process
+
+1. **Data Preparation**
+
+   ```bash
+   # Fetch latest data
+   python data/fetch_data.py
+
+   # Validate data quality
+   python data/validate_data.py
+
+   # Version the data with DVC
+   dvc add data/raw
+   dvc push
+   ```
+
+2. **Training**
+
+   ```bash
+   # Start training job on GKE
+   kubectl apply -f infra/k8s/training-job.yaml
+
+   # Monitor training progress
+   kubectl logs -f job/sentiment-training
+
+   # Check MLflow UI for metrics and artifacts
+   # Access at: http://mlflow.your-domain.com
+   ```
+
+3. **Model Evaluation**
+
+   ```bash
+   # Run evaluation
+   python app/training/register_model.py
+
+   # Check if model meets promotion criteria
+   python app/training/promotion_policy.py
+   ```
+
+4. **Deployment**
+
+   ```bash
+   # Build and push new model container
+   gcloud builds submit --config cloudbuild.yaml
+
+   # Deploy canary version (10% traffic)
+   kubectl apply -f infra/k8s/sentiment-service-canary.yaml
+
+   # Monitor canary metrics for 30 minutes
+   # If successful, promote to production
+   kubectl apply -f infra/k8s/sentiment-service.yaml
+   ```
+
+### Dashboard Monitoring and Alert Handling
+
+#### Key Dashboards
+
+1. **Service Health Dashboard**
+
+   - URL: http://grafana.your-domain.com/d/service-health
+   - Key Metrics:
+     - Request latency (p50, p95, p99)
+     - Error rate
+     - Request throughput
+     - GPU utilization (if applicable)
+   - Normal Ranges:
+     - Latency p99 < 500ms
+     - Error rate < 1%
+     - GPU utilization < 80%
+
+2. **Model Performance Dashboard**
+   - URL: http://grafana.your-domain.com/d/model-performance
+   - Key Metrics:
+     - Prediction confidence scores
+     - Data drift metrics (PSI)
+     - Feature distribution changes
+   - Normal Ranges:
+     - PSI < 0.2 for all features
+     - Mean confidence > 0.8
+
+#### Alert Handling
+
+1. **High Latency Alert**
+   - Trigger: p99 latency > 500ms for 5 minutes
+   - Actions:
+     1. Check pod resource utilization
+     2. Verify no ongoing GCP/region issues
+     3. Scale up if resource-bound
+     4. Check recent deployments
+2. **High Error Rate Alert**
+
+   - Trigger: Error rate > 1% for 5 minutes
+   - Actions:
+     1. Check pod logs for exceptions
+     2. Verify model artifacts are loaded
+     3. Check recent config changes
+     4. Rollback if tied to recent deploy
+
+3. **Data Drift Alert**
+   - Trigger: PSI > 0.2 for any feature
+   - Actions:
+     1. Analyze drift report in Evidently UI
+     2. Compare with historical patterns
+     3. Trigger retraining if persistent
+     4. Update drift thresholds if needed
+
+### Canary Rollback Procedures
+
+#### When to Rollback
+
+- Error rate increases by >50% compared to baseline
+- P99 latency increases by >100ms
+- Data drift PSI > 0.3 within first hour
+- Critical bugs or security issues discovered
+
+#### Quick Rollback Steps
+
+1. **Immediate Traffic Cutoff**
+
+   ```bash
+   # Remove canary from service mesh
+   kubectl delete -f infra/k8s/sentiment-service-canary.yaml
+   ```
+
+2. **Verify Traffic Routing**
+
+   ```bash
+   # Confirm all traffic goes to stable version
+   kubectl get virtualservice sentiment-analysis -o yaml
+   ```
+
+3. **Clean Up Resources**
+
+   ```bash
+   # Delete canary deployment
+   kubectl delete deployment sentiment-analysis-canary
+
+   # Remove canary image tag
+   gcloud container images untag gcr.io/project/sentiment-analysis:canary
+   ```
+
+4. **Post-Rollback Actions**
+5. Document incident in tracking system
+6. Collect logs and metrics for analysis
+7. Schedule post-mortem if needed
+8. Update promotion criteria if systematic issue
+
+#### Prevention Steps
+
+- Always deploy to canary first (10% traffic)
+- Monitor for 30 minutes before promotion
+- Use automated rollback triggers in HPA
+- Keep previous version's deployment yaml
+- Tag stable images with git SHA
+
+### Architecture Diagrams
+
+#### High-Level System Architecture
+
+```mermaid
+graph TB
+    subgraph "Data Management"
+        D[DVC] --> GCS[GCS Storage]
+        HF[HuggingFace] --> D
+    end
+
+    subgraph "Training Infrastructure"
+        MLF[MLflow Server] --> GCS
+        GPU[GKE GPU Node Pool] --> MLF
+    end
+
+    subgraph "Model Serving"
+        API[BentoML API] --> K8S[GKE Standard Pool]
+        K8S --> MLF
+    end
+
+    subgraph "Monitoring"
+        PROM[Prometheus] --> K8S
+        GRAF[Grafana] --> PROM
+        ALERT[AlertManager] --> PROM
+    end
+
+    subgraph "CI/CD"
+        GH[GitHub Actions] --> |Build| AR[Artifact Registry]
+        AR --> K8S
+    end
+```
+
+#### Data Flow and Retraining Pipeline
+
+```mermaid
+sequenceDiagram
+    participant Data as Data Pipeline
+    participant Train as Training Job
+    participant MLflow
+    participant Registry
+    participant Deploy as Deployment
+
+    Data->>Data: Fetch IMDB Data
+    Data->>Data: Validate Schema
+    Data->>Data: Version with DVC
+
+    Train->>Data: Load Latest Data
+    Train->>MLflow: Log Metrics
+    Train->>MLflow: Save Model
+
+    MLflow->>Registry: Register if Better
+    Registry->>Registry: Stage → Production
+
+    Deploy->>Registry: Pull Latest Model
+    Deploy->>Deploy: Build Container
+    Deploy->>Deploy: Canary Deploy
+    Deploy->>Deploy: Monitor & Promote
+```
+
 ## Overview
 
 SentimentOps is an end-to-end MLOps project that demonstrates how to train, deploy, monitor, and continuously improve a **DistilBERT** sentiment analysis model.  
@@ -105,23 +331,7 @@ It combines popular open-source tools with cloud-native infrastructure to showca
   - Ingress with TLS.
   - Secure access via Workload Identity and RBAC.
 
-### Stage 7: Monitoring & Drift Detection
-
-- Expose application metrics (latency, errors, version) for Prometheus.
-- Build Grafana dashboards.
-- Schedule an Evidently CronJob to compute drift metrics (PSI, KS).
-- Configure Alertmanager → Slack for SLO violations or drift.
-
-### Stage 8: CI/CD & Automation
-
-- Expand GitHub Actions:
-  - Run unit tests, style checks, and smoke inference.
-  - Build/push container on merge to `main`.
-  - Deploy canary to GKE; promote after soak if metrics stable.
-- Add a Prefect (or Argo) pipeline:
-  - Ingest new data → validate → retrain on GPU → evaluate → register → deploy.
-
-### Stage 9: Documentation & Runbook
+### Stage 7: Documentation & Runbook
 
 - Write a runbook:
   - How to retrain and deploy.

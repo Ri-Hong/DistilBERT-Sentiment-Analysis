@@ -1,0 +1,155 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sentiment-service
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sentiment-service
+  template:
+    metadata:
+      labels:
+        app: sentiment-service
+    spec:
+      serviceAccountName: sentiment-service
+      containers:
+      - name: sentiment-service
+        image: us-central1-docker.pkg.dev/sentimentops-123/distilbert-sentiment/sentiment-service:v6
+        env:
+        - name: GOMEMLIMIT
+          value: "1000MiB"
+        - name: GOGC
+          value: "off"
+        - name: GODEBUG
+          value: "gctrace=1"
+        imagePullPolicy: Always
+        command: ["uvicorn"]
+        args: ["app.service:app", "--host", "0.0.0.0", "--port", "3000"]
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "512Mi"
+          limits:
+            cpu: "500m"
+            memory: "1Gi"
+        ports:
+        - containerPort: 3000
+          name: http
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 60
+          periodSeconds: 20
+        env:
+        - name: MODEL_PATH
+          value: "/app/model/artifacts/best"
+        - name: TOKENIZER_NAME
+          value: "distilbert-base-uncased"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sentiment-service
+  namespace: default
+spec:
+  selector:
+    app: sentiment-service
+  ports:
+  - port: 80
+    targetPort: http
+    protocol: TCP
+    name: http
+  type: ClusterIP
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: sentiment-service-hpa
+  namespace: default
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: sentiment-service
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: sentiment-service-ingress
+  namespace: default
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  tls:
+  - hosts:
+    - api.sentiment.example.com  # API domain
+    secretName: api-tls
+  rules:
+  - host: api.sentiment.example.com  # API domain
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: sentiment-service
+            port:
+              name: http
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sentiment-service
+  namespace: default
+  annotations:
+    iam.gke.io/gcp-service-account: sentiment-service@sentimentops-123.iam.gserviceaccount.com
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: sentiment-service
+  namespace: default
+rules:
+- apiGroups: [""]
+  resources: ["configmaps", "secrets"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: sentiment-service
+  namespace: default
+subjects:
+- kind: ServiceAccount
+  name: sentiment-service
+  namespace: default
+roleRef:
+  kind: Role
+  name: sentiment-service
+  apiGroup: rbac.authorization.k8s.io

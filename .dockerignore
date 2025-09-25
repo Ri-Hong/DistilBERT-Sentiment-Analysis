@@ -1,0 +1,41 @@
+# Version control
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+frontend-venv/
+
+# Development
+.pytest_cache
+.coverage
+htmlcov/
+.env
+.env.*
+
+# Data and logs
+data/
+logs/
+mlruns/
+
+# Training artifacts
+app/training/
+monitoring/
+flows/
+
+# Infrastructure
+infra/
+images/
+
+# Documentation
+*.md
+LICENSE
+
+# IDE
+.vscode/
+.idea/

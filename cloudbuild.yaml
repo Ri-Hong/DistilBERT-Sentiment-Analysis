@@ -1,0 +1,44 @@
+steps:
+  # Create a directory for model files
+  - name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        mkdir -p /workspace/model/artifacts/best/
+        gsutil cp gs://distilbert-sentiment-data/models/* /workspace/model/artifacts/best/
+
+  # Build the backend service image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'build',
+      '--platform', 'linux/amd64',
+      '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/sentiment-service:${_TAG}',
+      '.'
+    ]
+    
+  # Push the backend service image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/sentiment-service:${_TAG}']
+
+  # Build the frontend image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'build',
+      '--platform', 'linux/amd64',
+      '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/sentiment-frontend:${_TAG}',
+      '-f', 'app/frontend/Dockerfile',
+      'app/frontend'
+    ]
+    
+  # Push the frontend image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/sentiment-frontend:${_TAG}']
+
+substitutions:
+  _REGION: us-central1
+  _REPOSITORY: distilbert-sentiment
+  _TAG: v6
+
+options:
+  machineType: 'E2_HIGHCPU_8'  # Use a powerful machine for faster builds

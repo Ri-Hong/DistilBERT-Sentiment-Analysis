@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 
 # Constants
 MODEL_NAME = "distilbert-base-uncased"
+MLFLOW_MODEL_NAME = "sentiment-analysis-distilbert"
 MAX_LENGTH = 512
 BATCH_SIZE = 16
 LEARNING_RATE = 2e-5
@@ -221,9 +222,12 @@ def main():
                 best_f1 = metrics["f1"]
                 if accelerator.is_local_main_process:
                     unwrapped_model = accelerator.unwrap_model(model)
-                    model_path = ARTIFACTS_DIR / "best"
-                    unwrapped_model.save_pretrained(str(model_path))
-                    mlflow.log_artifacts(str(model_path), artifact_path="model")
+                    # Save model in MLflow format
+                    mlflow.pytorch.log_model(
+                        unwrapped_model,
+                        "model",
+                        registered_model_name=MLFLOW_MODEL_NAME
+                    )
                     
                     # Check if model meets promotion criteria
                     if log_model_metrics(metrics):

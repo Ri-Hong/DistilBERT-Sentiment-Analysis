@@ -1,0 +1,119 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-code
+  namespace: default
+data:
+  app.py: |
+    """
+    Streamlit frontend for sentiment analysis model.
+    """
+    import json
+    import requests
+    import streamlit as st
+
+    # Configuration
+    try:
+        API_URL = st.secrets["API_URL"]
+    except:
+        API_URL = "http://sentiment-service"  # Internal k8s service name
+
+    st.set_page_config(
+        page_title="Sentiment Analysis",
+        page_icon="🎭",
+        layout="centered"
+    )
+
+    st.title("💭 Sentiment Analysis")
+    st.write("Analyze the sentiment of any text using our DistilBERT model.")
+
+    # Single text analysis
+    st.subheader("Single Text Analysis")
+    text_input = st.text_area("Enter text to analyze:", height=100)
+
+    if st.button("Analyze"):
+        if text_input:
+            try:
+                # Call prediction endpoint
+                response = requests.post(
+                    f"{API_URL}/predict",
+                    json={"text": text_input}
+                )
+                result = response.json()
+                
+                # Display results
+                sentiment = result["sentiment"]
+                confidence = result["confidence"]
+                
+                # Emoji and color based on sentiment
+                emoji = "😊" if sentiment == "positive" else "😔"
+                color = "green" if sentiment == "positive" else "red"
+                
+                st.markdown(f"### {emoji} Sentiment: :{color}[{sentiment.title()}]")
+                st.progress(confidence, text=f"Confidence: {confidence:.1%}")
+                
+            except Exception as e:
+                st.error(f"Error analyzing text: {str(e)}")
+        else:
+            st.warning("Please enter some text to analyze.")
+
+    # Batch analysis
+    st.subheader("Batch Analysis")
+    uploaded_file = st.file_uploader("Upload a text file (one sentence per line)", type=["txt"])
+
+    if uploaded_file and st.button("Analyze Batch"):
+        try:
+            # Read and process file
+            texts = [line.decode("utf-8").strip() for line in uploaded_file.readlines()]
+            texts = [t for t in texts if t]  # Remove empty lines
+            
+            if texts:
+                # Call batch prediction endpoint
+                response = requests.post(
+                    f"{API_URL}/predict_batch",
+                    json={"texts": texts}
+                )
+                results = response.json()["predictions"]
+                
+                # Display results in a table
+                st.write("### Results")
+                for i, result in enumerate(results, 1):
+                    with st.expander(f"Text {i}: {result['text'][:50]}..."):
+                        sentiment = result["sentiment"]
+                        confidence = result["confidence"]
+                        emoji = "😊" if sentiment == "positive" else "😔"
+                        color = "green" if sentiment == "positive" else "red"
+                        st.markdown(f"{emoji} Sentiment: :{color}[{sentiment.title()}]")
+                        st.progress(confidence, text=f"Confidence: {confidence:.1%}")
+            else:
+                st.warning("The uploaded file is empty.")
+                
+        except Exception as e:
+            st.error(f"Error processing file: {str(e)}")
+
+    # Model information
+    with st.sidebar:
+        st.write("### Model Information")
+        try:
+            response = requests.get(f"{API_URL}/metrics")
+            info = response.json()
+            st.write(f"Model: {info['model_name']}")
+            st.write(f"Version: {info['model_version']}")
+        except:
+            st.write("Model information unavailable")
+        
+        st.write("### About")
+        st.write("""
+        This app uses a fine-tuned DistilBERT model to analyze the sentiment of text.
+        The model was trained on the IMDB dataset and can classify text as either
+        positive or negative.
+        """)
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: streamlit-config
+  namespace: default
+data:
+  secrets.toml: |
+    API_URL = "http://sentiment-service"

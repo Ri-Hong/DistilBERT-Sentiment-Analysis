@@ -1,0 +1,50 @@
+apiVersion: v1
+data:
+  app.py: "\"\"\"\nStreamlit frontend for sentiment analysis model.\n\"\"\"\n\nimport
+    json\nimport requests\nimport streamlit as st\n\n# Configuration\nAPI_URL = st.secrets.get(\"API_URL\",
+    \"http://localhost:3000\")  # Can be updated after deployment\n\nst.set_page_config(\n
+    \   page_title=\"Sentiment Analysis\",\n    page_icon=\"\U0001F3AD\",\n    layout=\"centered\"\n)\n\nst.title(\"\U0001F4AD
+    Sentiment Analysis\")\nst.write(\"Analyze the sentiment of any text using our
+    DistilBERT model.\")\n\n# Single text analysis\nst.subheader(\"Single Text Analysis\")\ntext_input
+    = st.text_area(\"Enter text to analyze:\", height=100)\n\nif st.button(\"Analyze\"):\n
+    \   if text_input:\n        try:\n            # Call prediction endpoint\n            response
+    = requests.post(\n                f\"{API_URL}/predict\",\n                json={\"text\":
+    text_input}\n            )\n            result = response.json()\n            \n
+    \           # Display results\n            sentiment = result[\"sentiment\"]\n
+    \           confidence = result[\"confidence\"]\n            \n            # Emoji
+    and color based on sentiment\n            emoji = \"\U0001F60A\" if sentiment
+    == \"positive\" else \"\U0001F614\"\n            color = \"green\" if sentiment
+    == \"positive\" else \"red\"\n            \n            st.markdown(f\"### {emoji}
+    Sentiment: :{color}[{sentiment.title()}]\")\n            st.progress(confidence,
+    text=f\"Confidence: {confidence:.1%}\")\n            \n        except Exception
+    as e:\n            st.error(f\"Error analyzing text: {str(e)}\")\n    else:\n
+    \       st.warning(\"Please enter some text to analyze.\")\n\n# Batch analysis\nst.subheader(\"Batch
+    Analysis\")\nuploaded_file = st.file_uploader(\"Upload a text file (one sentence
+    per line)\", type=[\"txt\"])\n\nif uploaded_file and st.button(\"Analyze Batch\"):\n
+    \   try:\n        # Read and process file\n        texts = [line.decode(\"utf-8\").strip()
+    for line in uploaded_file.readlines()]\n        texts = [t for t in texts if t]
+    \ # Remove empty lines\n        \n        if texts:\n            # Call batch
+    prediction endpoint\n            response = requests.post(\n                f\"{API_URL}/predict_batch\",\n
+    \               json={\"texts\": texts}\n            )\n            results =
+    response.json()[\"predictions\"]\n            \n            # Display results
+    in a table\n            st.write(\"### Results\")\n            for i, result in
+    enumerate(results, 1):\n                with st.expander(f\"Text {i}: {result['text'][:50]}...\"):\n
+    \                   sentiment = result[\"sentiment\"]\n                    confidence
+    = result[\"confidence\"]\n                    emoji = \"\U0001F60A\" if sentiment
+    == \"positive\" else \"\U0001F614\"\n                    color = \"green\" if
+    sentiment == \"positive\" else \"red\"\n                    st.markdown(f\"{emoji}
+    Sentiment: :{color}[{sentiment.title()}]\")\n                    st.progress(confidence,
+    text=f\"Confidence: {confidence:.1%}\")\n        else:\n            st.warning(\"The
+    uploaded file is empty.\")\n            \n    except Exception as e:\n        st.error(f\"Error
+    processing file: {str(e)}\")\n\n# Model information\nwith st.sidebar:\n    st.write(\"###
+    Model Information\")\n    try:\n        response = requests.get(f\"{API_URL}/metrics\")\n
+    \       info = response.json()\n        st.write(f\"Model: {info['model_name']}\")\n
+    \       st.write(f\"Version: {info['model_version']}\")\n    except:\n        st.write(\"Model
+    information unavailable\")\n    \n    st.write(\"### About\")\n    st.write(\"\"\"\n
+    \   This app uses a fine-tuned DistilBERT model to analyze the sentiment of text.\n
+    \   The model was trained on the IMDB dataset and can classify text as either\n
+    \   positive or negative.\n    \"\"\")\n"
+kind: ConfigMap
+metadata:
+  creationTimestamp: null
+  name: frontend-code
